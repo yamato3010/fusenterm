@@ -1,7 +1,8 @@
-"""付箋の保存・読み込み
+"""付箋と設定の保存・読み込み
 
 付箋は JSON で ``~/.local/share/fusen/notes.json`` に保存する
 (``XDG_DATA_HOME`` があればそれに従う)。リストの順が重なり順 (後ろほど手前)。
+設定は同じ場所の ``settings.json`` に保存する。
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import logging
 import os
 from pathlib import Path
 
-from .models import Note
+from .models import Note, Settings
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +29,11 @@ def data_dir() -> Path:
 def notes_path() -> Path:
     """付箋ファイルのパス"""
     return data_dir() / "notes.json"
+
+
+def settings_path() -> Path:
+    """設定ファイルのパス"""
+    return data_dir() / "settings.json"
 
 
 def load_notes() -> list[Note]:
@@ -62,16 +68,45 @@ def load_notes() -> list[Note]:
 
 
 def save_notes(notes: list[Note]) -> None:
-    """付箋を保存する
+    """付箋を保存する (失敗した場合は OSError を送出する)"""
+    _write_json(notes_path(), [n.to_dict() for n in notes])
 
-    書き込み中に落ちてもファイルが壊れないよう、一時ファイルに書いてから
-    置き換える。失敗した場合は OSError を送出する。
+
+def load_settings() -> Settings:
+    """設定を読み込む
+
+    ファイルが無ければ既定の設定を返す。読めない・形式が違う場合は
+    ``settings.json.broken`` に退避してから既定の設定で始める。
     """
-    path = notes_path()
+    path = settings_path()
+    try:
+        with path.open(encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return Settings()
+    except (OSError, json.JSONDecodeError) as e:
+        log.warning("設定ファイルを読めないため退避します (%s): %s", path, e)
+        _quarantine(path)
+        return Settings()
+
+    if not isinstance(data, dict):
+        log.warning("設定ファイルの形式が不正なため退避します: %s", path)
+        _quarantine(path)
+        return Settings()
+    return Settings.from_dict(data)
+
+
+def save_settings(settings: Settings) -> None:
+    """設定を保存する (失敗した場合は OSError を送出する)"""
+    _write_json(settings_path(), settings.to_dict())
+
+
+def _write_json(path: Path, data: object) -> None:
+    """書き込み中に落ちてもファイルが壊れないよう、一時ファイルに書いてから置き換える"""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.parent / (path.name + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
-        json.dump([n.to_dict() for n in notes], f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
     os.replace(tmp, path)
 

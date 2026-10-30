@@ -18,6 +18,15 @@ Screen {
     border-subtitle-color: ansi_bright_black;
 }
 
+/* 背景の模様の色。模様はコードの Board.render_line で描く */
+#board > .board--pattern   { color: ansi_bright_black; }
+#board > .board--speck     { color: ansi_yellow; }
+#board > .board--speck-alt { color: ansi_red; }
+
+/* コルク (塗りつぶし) はボードを黄で塗り、粒を暗い色にする */
+#board.-bg-cork-filled { background: ansi_yellow; }
+#board.-bg-cork-filled > .board--speck { color: ansi_black; }
+
 /* ── 付箋 ───────────────────────── */
 /* 位置 (offset)・大きさ・色のクラスはコードの NoteCard.sync で付ける */
 NoteCard {
@@ -31,6 +40,17 @@ NoteCard {
     border-subtitle-align: right;
     border-subtitle-color: ansi_black;
     overflow: hidden;
+}
+
+/* 付箋の影。位置・大きさはコードの NoteCard.sync で付箋に合わせる */
+CardShadow {
+    position: absolute;
+    background: ansi_bright_black;
+}
+
+/* 設定で影を消したとき */
+#board.-no-shadow CardShadow {
+    display: none;
 }
 
 /* 選んでいる付箋は枠を太くして分かるようにする */
@@ -100,7 +120,8 @@ MiniCard:focus {
 /* モーダルの背景は塗らず、後ろの画面を見えたままにする */
 NoteEditScreen,
 ConfirmDeleteScreen,
-LinksScreen {
+LinksScreen,
+SettingsScreen {
     align: center middle;
     background: transparent;
 }
@@ -196,5 +217,35 @@ LinksScreen {
     height: auto;
     max-height: 100%;
     border: none;
+    background: transparent;
+}
+
+/* ── 設定 ───────────────────────── */
+#settings-dialog {
+    width: 44;
+    max-width: 90%;
+    height: auto;
+    padding: 1 2;
+    border: round ansi_blue;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+.settings-row {
+    height: auto;
+}
+
+.settings-label {
+    width: 1fr;
+    text-style: bold;
+}
+
+#settings-background-label {
+    margin-top: 1;
+}
+
+#settings-background {
+    width: 100%;
     background: transparent;
 }

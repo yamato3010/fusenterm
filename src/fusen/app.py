@@ -16,6 +16,7 @@ from .screens.confirm import ConfirmDeleteScreen
 from .screens.links import LinksScreen
 from .screens.note_edit import NoteEditScreen
 from .screens.overview import OverviewScreen
+from .screens.settings import SettingsScreen
 from .widgets.board import Board, NoteCard
 
 log = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class FusenApp(App):
         Binding("o", "links", "リンク"),
         Binding("x", "hold", "持つ"),
         Binding("p", "put", "ここに置く"),
+        Binding("s", "settings", "設定"),
         Binding("question_mark", "show_help_panel", "ヘルプ"),
         Binding("q", "quit", "終了"),
         Binding("shift+tab", "focus_previous", "前の付箋", show=False),
@@ -61,6 +63,7 @@ class FusenApp(App):
     def __init__(self) -> None:
         super().__init__()
         self._notes = storage.load_notes()
+        self._settings = storage.load_settings()
         self._deleted: Note | None = None  # u キーで戻せる、直前に剥がした付箋
         self._held: NoteCard | None = None  # x で持っている、p で今見ている所へ運ぶ付箋
 
@@ -75,6 +78,7 @@ class FusenApp(App):
     def on_mount(self) -> None:
         self.theme = self.THEME
         board = self._board()
+        self._apply_settings()
         board.mount_all(NoteCard(note) for note in self._notes)
         # 一番手前の付箋から始める
         if self._notes:
@@ -104,6 +108,15 @@ class FusenApp(App):
 
     def on_board_add_requested(self, event: Board.AddRequested) -> None:
         self._add_at(event.x, event.y)
+
+    def on_settings_screen_changed(self, event: SettingsScreen.Changed) -> None:
+        self._settings = event.settings
+        self._apply_settings()
+        try:
+            storage.save_settings(self._settings)
+        except OSError as e:
+            log.warning("設定の保存に失敗しました: %s", e)
+            self.notify(f"設定の保存に失敗しました: {e}", severity="error")
 
     # ── 操作 ────────────────────────────────
 
@@ -260,6 +273,15 @@ class FusenApp(App):
         card = self._current()
         if card is not None:
             self.push_screen(LinksScreen(card.note.text))
+
+    def action_settings(self) -> None:
+        self.push_screen(SettingsScreen(self._settings))
+
+    def _apply_settings(self) -> None:
+        """設定をボードの見た目に反映する"""
+        board = self._board()
+        board.set_shadow(self._settings.shadow)
+        board.set_background(self._settings.background)
 
     def action_undo(self) -> None:
         """直前に剥がした付箋を、元の位置の一番手前に戻す"""

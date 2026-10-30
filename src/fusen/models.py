@@ -23,6 +23,17 @@ _COLOR_ORDER = [value for value, _ in COLORS]
 
 DEFAULT_COLOR = "yellow"
 
+# ボードの背景 (値, 表示名)。設定画面はこの順に並べる
+BACKGROUNDS: list[tuple[str, str]] = [
+    ("plain", "無地"),
+    ("dots", "ドット"),
+    ("grid", "方眼"),
+    ("cork", "コルク (粒だけ)"),
+    ("cork-filled", "コルク (塗りつぶし)"),
+]
+
+DEFAULT_BACKGROUND = "plain"
+
 # 付箋の大きさ (桁・行。枠を含む)
 DEFAULT_WIDTH = 24
 DEFAULT_HEIGHT = 7
@@ -120,4 +131,28 @@ class Note:
             height=height,
             color=valid_color(data.get("color")),
             id=str(data.get("id") or uuid.uuid4().hex),
+        )
+
+
+@dataclass
+class Settings:
+    """アプリの設定"""
+
+    shadow: bool = True
+    background: str = DEFAULT_BACKGROUND
+
+    def to_dict(self) -> dict:
+        """保存用の辞書にする"""
+        return {"shadow": self.shadow, "background": self.background}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Settings:
+        """保存された辞書から復元する (無い・壊れている項目は既定値に落とす)"""
+        shadow = data.get("shadow")
+        background = data.get("background")
+        if background not in dict(BACKGROUNDS):
+            background = DEFAULT_BACKGROUND
+        return cls(
+            shadow=shadow if isinstance(shadow, bool) else True,
+            background=background,
         )
