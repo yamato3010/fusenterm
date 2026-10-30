@@ -19,11 +19,17 @@ from textual.message import Message
 from textual.strip import Strip
 from textual.widgets import Static
 
-from ..markdown import render_markdown
+from ..markdown import render_markdown, split_heading
 from ..models import COLORS, Note, clamp_size
 
 # 右下の角のつまみ (ここをドラッグすると大きさが変わる)
 _GRIP = "◢"
+
+# 選んでいる付箋の右上の角に出す、剥がすボタン
+_CLOSE = "×"
+
+# 移動モード・サイズ変更モードのとき枠の題に出す名前
+_MODE_LABELS = {"move": "移動", "resize": "サイズ変更"}
 
 # 枠と左右の余白で使う桁数 (本文に使える幅を出すため。app.tcss の NoteCard と揃える)
 _FRAME_WIDTH = 4
@@ -50,6 +56,8 @@ class NoteCard(Static, can_focus=True):
     矢印キー / hjkl でその向きの隣の付箋を選ぶ。m で移動モード、r でサイズ変更モードにすると、
     矢印キー / hjkl で付箋を動かす / 大きさを変える (同じキーか Esc で終わる)。
     マウスでは本体をドラッグで移動、右下の角をドラッグで大きさを変える。
+    選んでいる付箋は右上の角が × になり、クリックすると DeleteRequested を送る。
+    本文が h1 の見出しで始まっていれば、見出しは本文ではなく枠の題に出す。
     本文が収まらないときは Shift+↑↓ / K J かホイールで本文をスクロールする
     (スクロール位置は保存しない)。
     位置や大きさを変えたら Changed を送り、保存はアプリ側に任せる。
@@ -87,6 +95,13 @@ class NoteCard(Static, can_focus=True):
             super().__init__()
             self.card = card
 
+    class DeleteRequested(Message):
+        """右上の × をクリックした (剥がす確認を開く)"""
+
+        def __init__(self, card: NoteCard) -> None:
+            super().__init__()
+            self.card = card
+
     def __init__(self, note: Note) -> None:
         super().__init__()
         self.note = note
@@ -97,6 +112,10 @@ class NoteCard(Static, can_focus=True):
         self.mode: str | None = None
         # 本文を何行目から見せているか (収まらない本文をスクロールした分)
         self._scroll = 0
+        # 枠の題に出している本文の見出し (無ければ None)
+        self._heading: str | None = None
+        # マウスを押す前から選んでいたか (× が出ていたか)
+        self._focused_before_press = False
         self.sync()
 
     def sync(self) -> None:
@@ -107,6 +126,8 @@ class NoteCard(Static, can_focus=True):
         self.styles.height = note.height
         for value, _ in COLORS:
             self.set_class(note.color == value, f"-{value}")
+        self._heading, body = split_heading(note.text)
+        self._update_title()
         if not note.text:
             self._scroll = 0
             self.border_subtitle = None
@@ -114,7 +135,7 @@ class NoteCard(Static, can_focus=True):
             return
         width = note.width - _FRAME_WIDTH
         height = note.height - _FRAME_HEIGHT
-        lines = render_markdown(note.text, width).wrap(_WRAP_CONSOLE, width)
+        lines = render_markdown(body, width).wrap(_WRAP_CONSOLE, width)
         # 本文や大きさが変わって行き過ぎていたら、最後の行が下端に来る所まで戻す
         self._scroll = max(0, min(self._scroll, len(lines) - height))
         # 上下に隠れている本文があることを下の枠に出す
@@ -133,20 +154,23 @@ class NoteCard(Static, can_focus=True):
     def action_scroll_text(self, lines: int) -> None:
         self._scroll_text(lines)
 
+    def _update_title(self) -> None:
+        """枠の題に、モード中ならモードの名前と、本文の見出しを並べて出す"""
+        parts = [_MODE_LABELS.get(self.mode or ""), self._heading]
+        title = " · ".join(part for part in parts if part)
+        # 見出しの文字が markup と見なされないよう Text で渡す
+        self.border_title = Text(title) if title else None
+
     def render_lines(self, crop: Region) -> list[Strip]:
-        """枠の右下の角の文字をつまみに置き換える (枠の副題だと角から離れて描かれるため)"""
+        """枠の右下の角をつまみに、選んでいるときは右上の角を × に置き換える
+
+        枠の題・副題だと角から離れて描かれるため、角の文字を直接書き換える。
+        """
         strips = super().render_lines(crop)
         width, height = self.outer_size
-        if not crop.contains(width - 1, height - 1):
-            return strips
-        row = height - 1 - crop.y
-        x = width - 1 - crop.x
-        strip = strips[row]
-        corner = strip.crop(x, x + 1)
-        style = next((segment.style for segment in corner if segment.text), None)
-        strips[row] = Strip.join(
-            [strip.crop(0, x), Strip([Segment(_GRIP, style)], 1), strip.crop(x + 1)]
-        )
+        _replace_cell(strips, crop, width - 1, height - 1, _GRIP)
+        if self.has_focus:
+            _replace_cell(strips, crop, width - 1, 0, _CLOSE)
         return strips
 
     def sync_offset(self) -> None:
@@ -179,7 +203,7 @@ class NoteCard(Static, can_focus=True):
         self.mode = mode
         self.set_class(mode == "move", "-moving")
         self.set_class(mode == "resize", "-resizing")
-        self.border_title = {"move": "移動", "resize": "サイズ変更"}.get(mode or "")
+        self._update_title()
         # フッターの Esc の表示を切り替える
         self.refresh_bindings()
 
@@ -234,10 +258,19 @@ class NoteCard(Static, can_focus=True):
 
     # ── マウス ──────────────────────────────
 
+    def focus_on_click(self) -> bool:
+        # マウスを押すと on_mouse_down より先に選ばれてしまうので、その前の状態を覚えておく
+        self._focused_before_press = self.has_focus
+        return super().focus_on_click()
+
     def on_mouse_down(self, event: events.MouseDown) -> None:
         if event.button != 1:
             return
         event.stop()
+        # 右上の × (選んでいるときだけ出ている) を押したら剥がす
+        if self._focused_before_press and event.y == 0 and event.x >= self.outer_size.width - 2:
+            self.post_message(self.DeleteRequested(self))
+            return
         self.focus()
         note = self.note
         # 右下の角 (つまみの辺り) を掴んだら大きさを変える
@@ -278,6 +311,18 @@ class NoteCard(Static, can_focus=True):
         event.stop()
         if event.chain == 2:
             self.post_message(self.EditRequested(self))
+
+
+def _replace_cell(strips: list[Strip], crop: Region, x: int, y: int, char: str) -> None:
+    """描いた行の (x, y) の1文字を、元の文字の色のまま char に置き換える"""
+    if not crop.contains(x, y):
+        return
+    row = y - crop.y
+    x -= crop.x
+    strip = strips[row]
+    cell = strip.crop(x, x + 1)
+    style = next((segment.style for segment in cell if segment.text), None)
+    strips[row] = Strip.join([strip.crop(0, x), Strip([Segment(char, style)], 1), strip.crop(x + 1)])
 
 
 class Board(Container):

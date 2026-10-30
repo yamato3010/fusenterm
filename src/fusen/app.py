@@ -99,6 +99,9 @@ class FusenApp(App):
     def on_note_card_edit_requested(self, event: NoteCard.EditRequested) -> None:
         self._edit(event.card)
 
+    def on_note_card_delete_requested(self, event: NoteCard.DeleteRequested) -> None:
+        self._delete(event.card)
+
     def on_board_add_requested(self, event: Board.AddRequested) -> None:
         self._add_at(event.x, event.y)
 
@@ -160,8 +163,11 @@ class FusenApp(App):
 
     def action_delete(self) -> None:
         card = self._current()
-        if card is None:
-            return
+        if card is not None:
+            self._delete(card)
+
+    def _delete(self, card: NoteCard) -> None:
+        """確認してから付箋を剥がす (u で戻せるよう覚えておく)"""
 
         def on_result(confirmed: Optional[bool]) -> None:
             if not confirmed:

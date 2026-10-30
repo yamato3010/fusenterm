@@ -46,6 +46,27 @@ def render_markdown(text: str, width: int) -> Text:
     return _Renderer(text, width).render(_PARSER.parse(text))
 
 
+def split_heading(text: str) -> tuple[str | None, str]:
+    """本文が h1 の見出しで始まっていれば (見出しの文字, 残りの本文) に分ける
+
+    付箋の枠の題に見出しを出すため。見出しが無い・空なら (None, 本文) を返す。
+    見出しの中の装飾は落として文字だけにする。
+    """
+    tokens = _PARSER.parse(text)
+    if len(tokens) < 2 or tokens[0].type != "heading_open" or tokens[0].tag != "h1":
+        return None, text
+    title = "".join(
+        child.content
+        for child in tokens[1].children or []
+        if child.type in ("text", "code_inline", "image")
+    ).strip()
+    if not title or not tokens[0].map:
+        return None, text
+    # 見出しの行 (「===」で書く見出しなら下線の行まで) を抜いた残り
+    rest = text.split("\n")[tokens[0].map[1]:]
+    return title, "\n".join(rest)
+
+
 def extract_links(text: str) -> list[tuple[str, str]]:
     """本文に書かれたリンクを書かれた順に (文字, URL) で返す
 

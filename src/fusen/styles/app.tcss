@@ -25,6 +25,9 @@ NoteCard {
     padding: 0 1;
     color: ansi_black;
     border: round ansi_black;
+    /* 本文の h1 の見出しとモードの名前を出す */
+    border-title-color: ansi_black;
+    border-title-style: bold;
     border-subtitle-align: right;
     border-subtitle-color: ansi_black;
     overflow: hidden;
@@ -49,8 +52,6 @@ NoteCard.-moving:focus,
 NoteCard.-resizing,
 NoteCard.-resizing:focus {
     border: double ansi_black;
-    border-title-color: ansi_black;
-    border-title-style: bold;
 }
 
 NoteCard.-yellow,  MiniCard.-yellow  { background: ansi_yellow; }
