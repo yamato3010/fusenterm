@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from rich.console import Console
 from rich.segment import Segment
 from rich.text import Text
 from textual import events
@@ -27,6 +28,12 @@ _GRIP = "◢"
 # 枠と左右の余白で使う桁数 (本文に使える幅を出すため。app.tcss の NoteCard と揃える)
 _FRAME_WIDTH = 4
 
+# 枠の上下で使う行数 (本文に使える高さを出すため。app.tcss の NoteCard と揃える)
+_FRAME_HEIGHT = 2
+
+# 本文を付箋の幅で折り返すのに使う (折り返しにしか使わないので画面とは別でよい)
+_WRAP_CONSOLE = Console()
+
 # ホイール1回でカメラを動かす量 (桁, 行)
 _WHEEL_STEP = (4, 2)
 
@@ -40,9 +47,11 @@ _OFF_AXIS_WEIGHT = 2
 class NoteCard(Static, can_focus=True):
     """ボードに貼られた1枚の付箋
 
-    矢印キー / hjkl でその向きの隣の付箋を選ぶ。m で移動モードにすると、矢印キー /
-    hjkl で付箋を動かす (m か Esc で終わる)。Shift+矢印 / HJKL で大きさを変える。
+    矢印キー / hjkl でその向きの隣の付箋を選ぶ。m で移動モード、r でサイズ変更モードにすると、
+    矢印キー / hjkl で付箋を動かす / 大きさを変える (同じキーか Esc で終わる)。
     マウスでは本体をドラッグで移動、右下の角をドラッグで大きさを変える。
+    本文が収まらないときは Shift+↑↓ / K J かホイールで本文をスクロールする
+    (スクロール位置は保存しない)。
     位置や大きさを変えたら Changed を送り、保存はアプリ側に任せる。
     キーボードで選んだり動かしたりしたら、見えるところまでカメラを動かす。
     """
@@ -53,16 +62,15 @@ class NoteCard(Static, can_focus=True):
     ALLOW_SELECT = False
 
     BINDINGS = [
-        Binding("left,h", "step(-1, 0)", "左の付箋へ (移動モードでは左へ動かす)", show=False),
-        Binding("right,l", "step(1, 0)", "右の付箋へ (移動モードでは右へ動かす)", show=False),
-        Binding("up,k", "step(0, -1)", "上の付箋へ (移動モードでは上へ動かす)", show=False),
-        Binding("down,j", "step(0, 1)", "下の付箋へ (移動モードでは下へ動かす)", show=False),
-        Binding("m", "toggle_move", "移動モード"),
-        Binding("escape", "end_move", "移動を終える"),
-        Binding("shift+left,H", "resize(-1, 0)", "幅を縮める", show=False),
-        Binding("shift+right,L", "resize(1, 0)", "幅を広げる", show=False),
-        Binding("shift+up,K", "resize(0, -1)", "高さを縮める", show=False),
-        Binding("shift+down,J", "resize(0, 1)", "高さを広げる", show=False),
+        Binding("left,h", "step(-1, 0)", "左の付箋へ (モード中は左へ動かす / 幅を縮める)", show=False),
+        Binding("right,l", "step(1, 0)", "右の付箋へ (モード中は右へ動かす / 幅を広げる)", show=False),
+        Binding("up,k", "step(0, -1)", "上の付箋へ (モード中は上へ動かす / 高さを縮める)", show=False),
+        Binding("down,j", "step(0, 1)", "下の付箋へ (モード中は下へ動かす / 高さを広げる)", show=False),
+        Binding("m", "toggle_mode('move')", "移動モード"),
+        Binding("r", "toggle_mode('resize')", "サイズ変更モード"),
+        Binding("escape", "end_mode", "モードを終える"),
+        Binding("shift+up,K", "scroll_text(-1)", "本文を上へスクロール", show=False),
+        Binding("shift+down,J", "scroll_text(1)", "本文を下へスクロール", show=False),
     ]
 
     class Changed(Message):
@@ -84,8 +92,11 @@ class NoteCard(Static, can_focus=True):
         self.note = note
         # ドラッグ中の状態: (押した画面上の位置, 押したときの x, y, 幅, 高さ, 大きさを変えるか)
         self._drag: tuple[int, int, int, int, int, int, bool] | None = None
-        # 移動モード (矢印キー / hjkl で付箋を動かす) か
-        self.moving = False
+        # 矢印キー / hjkl の使い道: "move" (付箋を動かす), "resize" (大きさを変える),
+        # None (隣の付箋を選ぶ)
+        self.mode: str | None = None
+        # 本文を何行目から見せているか (収まらない本文をスクロールした分)
+        self._scroll = 0
         self.sync()
 
     def sync(self) -> None:
@@ -96,10 +107,31 @@ class NoteCard(Static, can_focus=True):
         self.styles.height = note.height
         for value, _ in COLORS:
             self.set_class(note.color == value, f"-{value}")
-        if note.text:
-            self.update(render_markdown(note.text, note.width - _FRAME_WIDTH))
-        else:
+        if not note.text:
+            self._scroll = 0
+            self.border_subtitle = None
             self.update(Text("(空の付箋)", style="dim"))
+            return
+        width = note.width - _FRAME_WIDTH
+        height = note.height - _FRAME_HEIGHT
+        lines = render_markdown(note.text, width).wrap(_WRAP_CONSOLE, width)
+        # 本文や大きさが変わって行き過ぎていたら、最後の行が下端に来る所まで戻す
+        self._scroll = max(0, min(self._scroll, len(lines) - height))
+        # 上下に隠れている本文があることを下の枠に出す
+        above = "▲" if self._scroll > 0 else ""
+        below = "▼" if self._scroll + height < len(lines) else ""
+        self.border_subtitle = (above + below) or None
+        self.update(Text("\n").join(lines[self._scroll : self._scroll + height]))
+
+    def _scroll_text(self, lines: int) -> bool:
+        """本文を lines 行スクロールする (動かせる余地が無ければ False)"""
+        before = self._scroll
+        self._scroll = max(0, self._scroll + lines)
+        self.sync()
+        return self._scroll != before
+
+    def action_scroll_text(self, lines: int) -> None:
+        self._scroll_text(lines)
 
     def render_lines(self, crop: Region) -> list[Strip]:
         """枠の右下の角の文字をつまみに置き換える (枠の副題だと角から離れて描かれるため)"""
@@ -138,34 +170,38 @@ class NoteCard(Static, can_focus=True):
             self.parent.reveal(self)
 
     def on_blur(self) -> None:
-        # ほかの付箋を選んだら移動モードは終わり
-        self._set_moving(False)
+        # ほかの付箋を選んだらモードは終わり
+        self._set_mode(None)
 
-    # ── 移動モード ──────────────────────────
+    # ── 移動モード・サイズ変更モード ──────────
 
-    def _set_moving(self, moving: bool) -> None:
-        self.moving = moving
-        self.set_class(moving, "-moving")
-        self.border_title = "移動" if moving else None
+    def _set_mode(self, mode: str | None) -> None:
+        self.mode = mode
+        self.set_class(mode == "move", "-moving")
+        self.set_class(mode == "resize", "-resizing")
+        self.border_title = {"move": "移動", "resize": "サイズ変更"}.get(mode or "")
         # フッターの Esc の表示を切り替える
         self.refresh_bindings()
 
-    def action_toggle_move(self) -> None:
-        self._set_moving(not self.moving)
+    def action_toggle_mode(self, mode: str) -> None:
+        # 別のモードのキーを押したら、そちらのモードに切り替える
+        self._set_mode(None if self.mode == mode else mode)
 
-    def action_end_move(self) -> None:
-        self._set_moving(False)
+    def action_end_mode(self) -> None:
+        self._set_mode(None)
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        # 移動モードでないときの Esc は付箋では使わない (アプリの Esc に回す)
-        if action == "end_move":
-            return self.moving
+        # モード中でないときの Esc は付箋では使わない (アプリの Esc に回す)
+        if action == "end_mode":
+            return self.mode is not None
         return True
 
     def action_step(self, dx: int, dy: int) -> None:
-        """移動モードなら付箋を動かし、そうでなければその向きの隣の付箋を選ぶ"""
-        if self.moving:
+        """モードに応じて、付箋を動かす・大きさを変える・その向きの隣の付箋を選ぶ"""
+        if self.mode == "move":
             self._move(dx, dy)
+        elif self.mode == "resize":
+            self._resize(dx, dy)
         elif isinstance(self.parent, Board):
             neighbor = self.parent.neighbor(self, dx, dy)
             if neighbor is not None:
@@ -186,7 +222,7 @@ class NoteCard(Static, can_focus=True):
         self._reveal()
         self.post_message(self.Changed(self))
 
-    def action_resize(self, dw: int, dh: int) -> None:
+    def _resize(self, dw: int, dh: int) -> None:
         note = self.note
         self._place(note.x, note.y, note.width + dw, note.height + dh)
         self._reveal()
@@ -227,6 +263,15 @@ class NoteCard(Static, can_focus=True):
         self._drag = None
         self.release_mouse()
         self.post_message(self.Changed(self))
+
+    def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
+        # 本文をスクロールできないとき (Shift 付き・下端まで見えている) はボードを動かす
+        if not event.shift and self._scroll_text(1):
+            event.stop()
+
+    def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
+        if not event.shift and self._scroll_text(-1):
+            event.stop()
 
     def on_click(self, event: events.Click) -> None:
         # ボードのダブルクリック (付箋の追加) まで届かないように止める

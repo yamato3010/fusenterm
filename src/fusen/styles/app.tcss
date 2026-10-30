@@ -42,9 +42,12 @@ NoteCard.-held:focus {
     border: dashed ansi_black;
 }
 
-/* m の移動モード中は二重線にする (持っている付箋でも二重線を優先する) */
+/* m の移動モード・r のサイズ変更モード中は二重線にする (持っている付箋でも二重線を優先する)。
+   どちらのモードかは枠の題で分かる */
 NoteCard.-moving,
-NoteCard.-moving:focus {
+NoteCard.-moving:focus,
+NoteCard.-resizing,
+NoteCard.-resizing:focus {
     border: double ansi_black;
     border-title-color: ansi_black;
     border-title-style: bold;
