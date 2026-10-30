@@ -1,0 +1,164 @@
+/* fusen - Textual CSS スタイル
+
+   色は端末のANSIパレット (ユーザーのターミナル配色設定) に追従させる。
+   テーマ自体も ansi-dark を使っている。 */
+
+Screen {
+    background: ansi_default;
+    layout: vertical;
+}
+
+/* ── ホワイトボード ─────────────── */
+#board {
+    height: 1fr;
+    margin: 0 1;
+    border: round ansi_bright_black;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+/* ── 付箋 ───────────────────────── */
+/* 位置 (offset)・大きさ・色のクラスはコードの NoteCard.sync で付ける */
+NoteCard {
+    position: absolute;
+    padding: 0 1;
+    color: ansi_black;
+    border: round ansi_black;
+    border-subtitle-align: right;
+    border-subtitle-color: ansi_black;
+    overflow: hidden;
+}
+
+/* 選んでいる付箋は枠を太くして分かるようにする */
+NoteCard:focus {
+    border: heavy ansi_black;
+    text-style: bold;
+}
+
+/* x で持っている付箋は枠を破線にする (選んでいても破線のまま) */
+NoteCard.-held,
+NoteCard.-held:focus {
+    border: dashed ansi_black;
+}
+
+NoteCard.-yellow,  MiniCard.-yellow  { background: ansi_yellow; }
+NoteCard.-magenta, MiniCard.-magenta { background: ansi_magenta; }
+NoteCard.-cyan,    MiniCard.-cyan    { background: ansi_cyan; }
+NoteCard.-green,   MiniCard.-green   { background: ansi_green; }
+NoteCard.-blue,    MiniCard.-blue    { background: ansi_blue; }
+NoteCard.-red,     MiniCard.-red     { background: ansi_red; }
+NoteCard.-white,   MiniCard.-white   { background: ansi_white; }
+
+/* ── 縮小表示 ───────────────────── */
+/* ボードと同じ見た目の枠の中に、縮めた付箋を並べる。後ろの画面は塗りつぶして隠す */
+OverviewScreen {
+    background: ansi_default;
+}
+
+#overview {
+    margin: 0 1;
+    border: round ansi_bright_black;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+/* 今見ている範囲 */
+#overview-frame {
+    position: absolute;
+    border: round ansi_white;
+}
+
+/* 位置・大きさ・色のクラスはコードの OverviewScreen で付ける */
+/* 狭い箱で1文字ずつ折り返さないよう、1行に収めて溢れた分は … で省く */
+MiniCard {
+    position: absolute;
+    color: ansi_black;
+    overflow: hidden;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+MiniCard:focus {
+    text-style: bold reverse;
+}
+
+/* ── モーダル共通 ───────────────── */
+/* モーダルの背景は塗らず、後ろの画面を見えたままにする */
+NoteEditScreen,
+ConfirmDeleteScreen {
+    align: center middle;
+    background: transparent;
+}
+
+/* ── 編集モーダル ───────────────── */
+#edit-dialog {
+    width: 62;
+    max-width: 90%;
+    height: 20;
+    max-height: 100%;
+    padding: 1 2;
+    border: round ansi_blue;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+#edit-text {
+    height: 1fr;
+}
+
+#edit-color {
+    margin-top: 1;
+    width: 16;
+}
+
+#edit-color > SelectCurrent {
+    background: ansi_bright_black;
+}
+
+/* Select は枠線でしかフォーカスを示さない作りなので、枠が無いと変化が無くなる。
+   開いたときの選択行と同じ配色 (block-cursor) で塗って分かるようにする */
+#edit-color:focus > SelectCurrent {
+    background: $block-cursor-background;
+    color: $block-cursor-foreground;
+}
+
+/* ── 削除の確認 ─────────────────── */
+#confirm-dialog {
+    width: 52;
+    max-width: 90%;
+    height: auto;
+    padding: 1 2;
+    border: round ansi_red;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+#confirm-message {
+    height: auto;
+}
+
+#confirm-buttons {
+    height: auto;
+    margin-top: 1;
+    align-horizontal: right;
+}
+
+/* 背景を塗らないので、枠でボタンの範囲を示す */
+#confirm-buttons Button {
+    margin-left: 2;
+    border: round ansi_bright_black;
+}
+
+#confirm-buttons Button:focus {
+    border: round ansi_blue;
+}
+
+/* 削除は危険な操作なので枠は常に赤のまま */
+#confirm-buttons #delete,
+#confirm-buttons #delete:focus {
+    border: round ansi_red;
+}

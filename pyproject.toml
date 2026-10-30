@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fusen"
+version = "0.1.0"
+description = "ターミナルのホワイトボードに付箋を貼ってタスク・メモを管理するアプリ"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["sticky", "note", "whiteboard", "tui", "terminal"]
+classifiers = [
+    "Environment :: Console",
+    "Natural Language :: Japanese",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    # 端末の配色に追従する ansi-dark テーマが入ったのが 8.2.5 (それ以前は起動できない)
+    "textual>=8.2.5",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+fusen = "fusen.__main__:main"
