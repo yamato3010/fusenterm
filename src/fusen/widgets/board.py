@@ -8,11 +8,14 @@
 
 from __future__ import annotations
 
+from rich.segment import Segment
 from rich.text import Text
 from textual import events
 from textual.binding import Binding
 from textual.containers import Container
+from textual.geometry import Region
 from textual.message import Message
+from textual.strip import Strip
 from textual.widgets import Static
 
 from ..markdown import render_markdown
@@ -83,7 +86,6 @@ class NoteCard(Static, can_focus=True):
         self._drag: tuple[int, int, int, int, int, int, bool] | None = None
         # 移動モード (矢印キー / hjkl で付箋を動かす) か
         self.moving = False
-        self.border_subtitle = _GRIP
         self.sync()
 
     def sync(self) -> None:
@@ -98,6 +100,22 @@ class NoteCard(Static, can_focus=True):
             self.update(render_markdown(note.text, note.width - _FRAME_WIDTH))
         else:
             self.update(Text("(空の付箋)", style="dim"))
+
+    def render_lines(self, crop: Region) -> list[Strip]:
+        """枠の右下の角の文字をつまみに置き換える (枠の副題だと角から離れて描かれるため)"""
+        strips = super().render_lines(crop)
+        width, height = self.outer_size
+        if not crop.contains(width - 1, height - 1):
+            return strips
+        row = height - 1 - crop.y
+        x = width - 1 - crop.x
+        strip = strips[row]
+        corner = strip.crop(x, x + 1)
+        style = next((segment.style for segment in corner if segment.text), None)
+        strips[row] = Strip.join(
+            [strip.crop(0, x), Strip([Segment(_GRIP, style)], 1), strip.crop(x + 1)]
+        )
+        return strips
 
     def sync_offset(self) -> None:
         """付箋の位置とカメラから、画面上の位置を決め直す"""
