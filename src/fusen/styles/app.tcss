@@ -42,6 +42,14 @@ NoteCard.-held:focus {
     border: dashed ansi_black;
 }
 
+/* m の移動モード中は二重線にする (持っている付箋でも二重線を優先する) */
+NoteCard.-moving,
+NoteCard.-moving:focus {
+    border: double ansi_black;
+    border-title-color: ansi_black;
+    border-title-style: bold;
+}
+
 NoteCard.-yellow,  MiniCard.-yellow  { background: ansi_yellow; }
 NoteCard.-magenta, MiniCard.-magenta { background: ansi_magenta; }
 NoteCard.-cyan,    MiniCard.-cyan    { background: ansi_cyan; }

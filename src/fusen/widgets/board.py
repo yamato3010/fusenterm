@@ -27,11 +27,18 @@ _FRAME_WIDTH = 4
 # ホイール1回でカメラを動かす量 (桁, 行)
 _WHEEL_STEP = (4, 2)
 
+# 端末の1文字は縦長 (高さが幅のおよそ2倍) なので、見た目の距離を測るときは行数をこの倍にする
+_ROW_ASPECT = 2
+
+# 隣の付箋を探すとき、向きからのずれをどれだけ重く見るか (大きいほど真っ直ぐ先を選ぶ)
+_OFF_AXIS_WEIGHT = 2
+
 
 class NoteCard(Static, can_focus=True):
     """ボードに貼られた1枚の付箋
 
-    矢印キー / hjkl で移動、Shift+矢印 / HJKL で大きさを変える。
+    矢印キー / hjkl でその向きの隣の付箋を選ぶ。m で移動モードにすると、矢印キー /
+    hjkl で付箋を動かす (m か Esc で終わる)。Shift+矢印 / HJKL で大きさを変える。
     マウスでは本体をドラッグで移動、右下の角をドラッグで大きさを変える。
     位置や大きさを変えたら Changed を送り、保存はアプリ側に任せる。
     キーボードで選んだり動かしたりしたら、見えるところまでカメラを動かす。
@@ -43,10 +50,12 @@ class NoteCard(Static, can_focus=True):
     ALLOW_SELECT = False
 
     BINDINGS = [
-        Binding("left,h", "move(-1, 0)", "左へ", show=False),
-        Binding("right,l", "move(1, 0)", "右へ", show=False),
-        Binding("up,k", "move(0, -1)", "上へ", show=False),
-        Binding("down,j", "move(0, 1)", "下へ", show=False),
+        Binding("left,h", "step(-1, 0)", "左の付箋へ (移動モードでは左へ動かす)", show=False),
+        Binding("right,l", "step(1, 0)", "右の付箋へ (移動モードでは右へ動かす)", show=False),
+        Binding("up,k", "step(0, -1)", "上の付箋へ (移動モードでは上へ動かす)", show=False),
+        Binding("down,j", "step(0, 1)", "下の付箋へ (移動モードでは下へ動かす)", show=False),
+        Binding("m", "toggle_move", "移動モード"),
+        Binding("escape", "end_move", "移動を終える"),
         Binding("shift+left,H", "resize(-1, 0)", "幅を縮める", show=False),
         Binding("shift+right,L", "resize(1, 0)", "幅を広げる", show=False),
         Binding("shift+up,K", "resize(0, -1)", "高さを縮める", show=False),
@@ -72,6 +81,8 @@ class NoteCard(Static, can_focus=True):
         self.note = note
         # ドラッグ中の状態: (押した画面上の位置, 押したときの x, y, 幅, 高さ, 大きさを変えるか)
         self._drag: tuple[int, int, int, int, int, int, bool] | None = None
+        # 移動モード (矢印キー / hjkl で付箋を動かす) か
+        self.moving = False
         self.border_subtitle = _GRIP
         self.sync()
 
@@ -108,6 +119,40 @@ class NoteCard(Static, can_focus=True):
         if self._drag is None:
             self.parent.reveal(self)
 
+    def on_blur(self) -> None:
+        # ほかの付箋を選んだら移動モードは終わり
+        self._set_moving(False)
+
+    # ── 移動モード ──────────────────────────
+
+    def _set_moving(self, moving: bool) -> None:
+        self.moving = moving
+        self.set_class(moving, "-moving")
+        self.border_title = "移動" if moving else None
+        # フッターの Esc の表示を切り替える
+        self.refresh_bindings()
+
+    def action_toggle_move(self) -> None:
+        self._set_moving(not self.moving)
+
+    def action_end_move(self) -> None:
+        self._set_moving(False)
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        # 移動モードでないときの Esc は付箋では使わない (アプリの Esc に回す)
+        if action == "end_move":
+            return self.moving
+        return True
+
+    def action_step(self, dx: int, dy: int) -> None:
+        """移動モードなら付箋を動かし、そうでなければその向きの隣の付箋を選ぶ"""
+        if self.moving:
+            self._move(dx, dy)
+        elif isinstance(self.parent, Board):
+            neighbor = self.parent.neighbor(self, dx, dy)
+            if neighbor is not None:
+                neighbor.focus()
+
     # ── 位置・大きさ ────────────────────────
 
     def _place(self, x: int, y: int, width: int, height: int) -> None:
@@ -117,7 +162,7 @@ class NoteCard(Static, can_focus=True):
         note.x, note.y = x, y
         self.sync()
 
-    def action_move(self, dx: int, dy: int) -> None:
+    def _move(self, dx: int, dy: int) -> None:
         note = self.note
         self._place(note.x + dx, note.y + dy, note.width, note.height)
         self._reveal()
@@ -279,6 +324,33 @@ class Board(Container):
 
     def on_mouse_scroll_left(self, event: events.MouseScrollLeft) -> None:
         self._scroll(event, -1, 0)
+
+    def neighbor(self, card: NoteCard, dx: int, dy: int) -> NoteCard | None:
+        """付箋から見て (dx, dy) の向きにある一番近い付箋 (無ければ None)
+
+        付箋の中心どうしで比べる。向きに沿って先にあるものだけを候補にし、
+        向きからのずれは重く見る (斜め遠くより、真っ直ぐ先を選びやすくする)。
+        """
+
+        def center(c: NoteCard) -> tuple[float, float]:
+            note = c.note
+            return note.x + note.width / 2, (note.y + note.height / 2) * _ROW_ASPECT
+
+        from_x, from_y = center(card)
+        best: NoteCard | None = None
+        best_score = 0.0
+        for other in self.cards():
+            if other is card:
+                continue
+            to_x, to_y = center(other)
+            along = (to_x - from_x) * dx + (to_y - from_y) * dy
+            if along <= 0:
+                continue
+            off_axis = abs((to_x - from_x) * dy) + abs((to_y - from_y) * dx)
+            score = along + off_axis * _OFF_AXIS_WEIGHT
+            if best is None or score < best_score:
+                best, best_score = other, score
+        return best
 
     def cards(self) -> list[NoteCard]:
         """貼られている付箋 (奥から手前の順)"""

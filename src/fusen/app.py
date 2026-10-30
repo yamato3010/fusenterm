@@ -65,7 +65,7 @@ class FusenApp(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         board = Board(id="board")
-        board.border_subtitle = "矢印 移動   Shift+矢印 大きさ   ドラッグ 移動   右下の角 大きさ"
+        board.border_subtitle = "hjkl 選ぶ   m 移動モード   HJKL 大きさ   ドラッグ 移動   右下の角 大きさ"
         yield board
         # コマンドパレットの案内はフッターの幅を食うので出さない
         yield Footer(show_command_palette=False)
