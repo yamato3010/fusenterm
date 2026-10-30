@@ -13,6 +13,7 @@ from textual.widgets import Footer, Header
 from . import storage
 from .models import DEFAULT_COLOR, Note, color_label, next_color, note_title
 from .screens.confirm import ConfirmDeleteScreen
+from .screens.links import LinksScreen
 from .screens.note_edit import NoteEditScreen
 from .screens.overview import OverviewScreen
 from .widgets.board import Board, NoteCard
@@ -47,6 +48,7 @@ class FusenApp(App):
         Binding("d", "delete", "剥がす"),
         Binding("tab", "focus_next", "次の付箋"),
         Binding("z", "overview", "全体"),
+        Binding("o", "links", "リンク"),
         Binding("x", "hold", "持つ"),
         Binding("p", "put", "ここに置く"),
         Binding("question_mark", "show_help_panel", "ヘルプ"),
@@ -246,6 +248,12 @@ class FusenApp(App):
 
         notes = [c.note for c in board.cards()]
         self.push_screen(OverviewScreen(notes, board.camera, board.view_size()), on_result)
+
+    def action_links(self) -> None:
+        """選んでいる付箋に書かれたリンクを一覧で見せる"""
+        card = self._current()
+        if card is not None:
+            self.push_screen(LinksScreen(card.note.text))
 
     def action_undo(self) -> None:
         """直前に剥がした付箋を、元の位置の一番手前に戻す"""

@@ -95,16 +95,19 @@ MiniCard:focus {
 /* ── モーダル共通 ───────────────── */
 /* モーダルの背景は塗らず、後ろの画面を見えたままにする */
 NoteEditScreen,
-ConfirmDeleteScreen {
+ConfirmDeleteScreen,
+LinksScreen {
     align: center middle;
     background: transparent;
 }
 
 /* ── 編集モーダル ───────────────── */
 #edit-dialog {
-    width: 62;
-    max-width: 90%;
-    height: 20;
+    width: 80%;
+    min-width: 62;
+    max-width: 120;
+    height: 80%;
+    min-height: 20;
     max-height: 100%;
     padding: 1 2;
     border: round ansi_blue;
@@ -169,4 +172,25 @@ ConfirmDeleteScreen {
 #confirm-buttons #delete,
 #confirm-buttons #delete:focus {
     border: round ansi_red;
+}
+
+/* ── リンクの一覧 ───────────────── */
+#links-dialog {
+    width: 80%;
+    min-width: 52;
+    max-width: 120;
+    height: auto;
+    max-height: 80%;
+    padding: 1 2;
+    border: round ansi_blue;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+#links-list {
+    height: auto;
+    max-height: 100%;
+    border: none;
+    background: transparent;
 }

@@ -23,6 +23,11 @@ _INLINE_STYLES = {"strong": "bold", "em": "italic", "s": "strike", "link": "unde
 # 箇条書きの先頭の「[ ] 」「[x] 」(チェックボックス)
 _TASK = re.compile(r"^\[([ xX])\]\s+")
 
+# 本文にそのまま書かれた URL (markdown のリンクになっていないもの)。
+# 「https://example.comです」のように日本語が続いても切れるよう、URL に使える文字だけ拾う。
+# 文末の句読点は URL に含めない
+_BARE_URL = re.compile(r"https?://[A-Za-z0-9\-._~:/?#@!$&'*+,;=%]*[A-Za-z0-9\-_~/#=%]")
+
 
 def _parser() -> MarkdownIt:
     """付箋用の markdown パーサ
@@ -39,6 +44,36 @@ _PARSER = _parser()
 def render_markdown(text: str, width: int) -> Text:
     """本文を markdown として描いた Text を返す (``width`` は区切り線の長さ)"""
     return _Renderer(text, width).render(_PARSER.parse(text))
+
+
+def extract_links(text: str) -> list[tuple[str, str]]:
+    """本文に書かれたリンクを書かれた順に (文字, URL) で返す
+
+    URL をそのまま書いたものや、文字が URL と同じリンクは文字を空にする。
+    コードの中の URL はリンクと見なさない。
+    """
+    links: list[tuple[str, str]] = []
+    for token in _PARSER.parse(text):
+        if token.type != "inline":
+            continue
+        href: str | None = None  # リンクの中にいる間はその URL
+        label = ""
+        for child in token.children or []:
+            if child.type == "link_open":
+                href = str(child.attrGet("href") or "")
+                label = ""
+            elif child.type == "link_close" and href is not None:
+                label = label.strip()
+                links.append(("" if label == href else label, href))
+                href = None
+            elif href is not None:
+                if child.type in ("text", "code_inline", "image"):
+                    label += child.content
+                elif child.type in ("softbreak", "hardbreak"):
+                    label += " "
+            elif child.type == "text":
+                links.extend(("", url) for url in _BARE_URL.findall(child.content))
+    return links
 
 
 class _Renderer:
