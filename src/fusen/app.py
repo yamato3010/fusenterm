@@ -12,6 +12,7 @@ from textual.widgets import Footer, Header
 
 from . import storage
 from .models import DEFAULT_COLOR, Note, color_label, next_color, note_title
+from .screens.about import AboutScreen
 from .screens.confirm import ConfirmDeleteScreen
 from .screens.links import LinksScreen
 from .screens.note_edit import NoteEditScreen
@@ -52,11 +53,12 @@ class FusenApp(App):
         Binding("o", "links", "リンク"),
         Binding("x", "hold", "持つ"),
         Binding("p", "put", "ここに置く"),
-        Binding("s", "settings", "設定"),
+        Binding("comma", "settings", "設定"),
         Binding("question_mark", "show_help_panel", "ヘルプ"),
         Binding("q", "quit", "終了"),
         Binding("shift+tab", "focus_previous", "前の付箋", show=False),
         Binding("u", "undo", "剥がした付箋を戻す", show=False),
+        Binding("i", "about", "このアプリについて", show=False),
         Binding("escape", "hide_help_panel", "ヘルプを閉じる", show=False),
     ]
 
@@ -276,6 +278,9 @@ class FusenApp(App):
 
     def action_settings(self) -> None:
         self.push_screen(SettingsScreen(self._settings))
+
+    def action_about(self) -> None:
+        self.push_screen(AboutScreen())
 
     def _apply_settings(self) -> None:
         """設定をボードの見た目に反映する"""

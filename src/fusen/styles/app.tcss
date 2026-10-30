@@ -121,7 +121,8 @@ MiniCard:focus {
 NoteEditScreen,
 ConfirmDeleteScreen,
 LinksScreen,
-SettingsScreen {
+SettingsScreen,
+AboutScreen {
     align: center middle;
     background: transparent;
 }
@@ -218,6 +219,22 @@ SettingsScreen {
     max-height: 100%;
     border: none;
     background: transparent;
+}
+
+/* ── このアプリについて ─────────── */
+#about-dialog {
+    width: 52;
+    max-width: 90%;
+    height: auto;
+    padding: 1 2;
+    border: round ansi_blue;
+    border-title-color: ansi_white;
+    border-title-style: bold;
+    border-subtitle-color: ansi_bright_black;
+}
+
+#about-body {
+    height: auto;
 }
 
 /* ── 設定 ───────────────────────── */

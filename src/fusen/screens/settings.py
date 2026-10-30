@@ -25,7 +25,7 @@ class SettingsScreen(ModalScreen[None]):
     AUTO_FOCUS = "#settings-shadow"
 
     BINDINGS = [
-        Binding("escape,s", "close", "閉じる"),
+        Binding("escape,comma", "close", "閉じる"),
     ]
 
     class Changed(Message):
@@ -42,7 +42,7 @@ class SettingsScreen(ModalScreen[None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="settings-dialog") as dialog:
             dialog.border_title = "設定"
-            dialog.border_subtitle = "Tab 移る   Enter 切り替え   Esc / s 閉じる"
+            dialog.border_subtitle = "Tab 移る   Enter 切り替え   Esc / , 閉じる"
             with Horizontal(classes="settings-row"):
                 yield Label("付箋の影", classes="settings-label")
                 yield Switch(self._settings.shadow, id="settings-shadow")
