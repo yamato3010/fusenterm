@@ -18,6 +18,10 @@
 ## 使い方
 
 ```sh
+# PyPI からインストール
+pipx install fusenterm
+fusenterm
+
 # このリポジトリのソースから入れる
 pipx install .
 fusenterm
@@ -153,3 +157,4 @@ fusenterm
 ```
 
 色は端末の ANSI パレットに追従します (`yellow` `magenta` `cyan` `green` `blue` `red` `white`)。
+
