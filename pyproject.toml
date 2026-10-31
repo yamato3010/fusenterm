@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "fusen"
+name = "fusenterm"
 version = "0.1.0"
 description = "ターミナルのホワイトボードに付箋を貼ってタスク・メモを管理するアプリ"
 readme = "README.md"
@@ -23,4 +23,4 @@ dependencies = [
 ]
 
 [project.scripts]
-fusen = "fusen.__main__:main"
+fusenterm = "fusenterm.__main__:main"

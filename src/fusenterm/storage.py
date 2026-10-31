@@ -16,6 +16,7 @@ from .models import Note, Settings
 
 log = logging.getLogger(__name__)
 
+# 旧名 fusen 時代のデータをそのまま読むため、改名後も保存先の名前は fusen のまま
 APP_DIR_NAME = "fusen"
 
 

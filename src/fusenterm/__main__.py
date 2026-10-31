@@ -1,4 +1,4 @@
-"""fusen - エントリーポイント"""
+"""fusenterm - エントリーポイント"""
 
 from .app import FusenApp
 

@@ -1,4 +1,4 @@
-/* fusen - Textual CSS スタイル
+/* fusenterm - Textual CSS スタイル
 
    色は端末のANSIパレット (ユーザーのターミナル配色設定) に追従させる。
    テーマ自体も ansi-dark を使っている。 */

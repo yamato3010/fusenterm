@@ -15,7 +15,7 @@ from textual.widgets import Static
 from .. import __version__
 from ..storage import notes_path, settings_path
 
-APP_NAME = "fusen"
+APP_NAME = "fusenterm"
 APP_DESCRIPTION = "ターミナルのホワイトボードに付箋を貼るアプリ"
 
 # ラベルと値 (値は右側で桁を揃えて表示する)

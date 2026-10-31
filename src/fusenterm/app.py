@@ -1,4 +1,4 @@
-"""fusen - メインアプリケーション"""
+"""fusenterm - メインアプリケーション"""
 
 from __future__ import annotations
 
@@ -30,9 +30,9 @@ _CASCADE_COUNT = 6
 
 
 class FusenApp(App):
-    """fusen アプリケーション"""
+    """fusenterm アプリケーション"""
 
-    TITLE = "fusen"
+    TITLE = "fusenterm"
     CSS_PATH = CSS_PATH
     BINDING_GROUP_TITLE = "全体"
 
