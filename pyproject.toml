@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -24,3 +24,14 @@ dependencies = [
 
 [project.scripts]
 fusenterm = "fusenterm.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/yamato3010/fusenterm"
+Repository = "https://github.com/yamato3010/fusenterm"
+Issues = "https://github.com/yamato3010/fusenterm/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fusenterm"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
