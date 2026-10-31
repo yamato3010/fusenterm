@@ -4,6 +4,17 @@
 付箋は好きな位置・大きさ・色で貼れます。ホワイトボードは無限に広く、
 縮小表示で全体を見渡せます。
 
+<table>
+  <tr>
+    <td width="50%"><img src="img/1.png" alt="fusentermのスクリーンショット1" width="100%"></td>
+    <td width="50%"><img src="img/2.png" alt="fusentermのスクリーンショット2" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="img/3.png" alt="fusentermのスクリーンショット3" width="100%"></td>
+    <td width="50%"><img src="img/4.png" alt="fusentermのスクリーンショット4" width="100%"></td>
+  </tr>
+</table>
+
 ## 使い方
 
 ```sh
